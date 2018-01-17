@@ -19,16 +19,18 @@ const formSteps = {
   MAIN: 2
 }
 
+const initialData = {
+  show: false,
+  newItemCategory: null,
+  searchTerm: '',
+  newItemData: null,
+  activeItemIndex: 0,
+  categoryId: null,
+  step: formSteps.INITIAL
+}
+
 class SelectContent extends Component {
-  state = {
-    show: false,
-    newItemCategory: null,
-    searchTerm: '',
-    newItemData: null,
-    activeItemIndex: 0,
-    categoryId: null,
-    step: formSteps.INITIAL
-  }
+  state = initialData
 
   constructor(props) {
     super(props)
@@ -115,11 +117,11 @@ class SelectContent extends Component {
   }
 
   resetCreateContent = () => {
-    this.setState({ newItemCategory: null, newItemData: null })
+    this.setState({ newItemCategory: null, newItemData: null, searchTerm: null })
   }
 
   onClose = () => {
-    this.setState({ show: false })
+    this.setState(initialData)
     this.callback = null
     window.removeEventListener('keyup', this.handleChangeActiveItem)
   }
