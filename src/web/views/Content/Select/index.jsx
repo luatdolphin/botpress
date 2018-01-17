@@ -6,7 +6,7 @@ import axios from 'axios'
 import classnames from 'classnames'
 
 import CreateOrEditModal from '../modal'
-import { fetchContentItemsRecent, fetchContentItemsCount, fetchContentCategories, upsertContentItems } from '~/actions'
+import { fetchContentItemsRecent, fetchContentItemsCount, fetchContentCategories, upsertContentItem } from '~/actions'
 import { moveCursorToEnd } from '~/util'
 
 const style = require('./style.scss')
@@ -16,9 +16,9 @@ const SEARCH_RESULTS_LIMIT = 5
 class SelectContent extends Component {
   state = {
     show: false,
-    category: null,
+    newItemCategory: null,
     searchTerm: '',
-    contentToEdit: null,
+    newItemData: null,
     activeItemIndex: 0
   }
 
@@ -73,9 +73,12 @@ class SelectContent extends Component {
 
   handleCreate = () => {
     this.props
-      .upsertContentItems({ categoryId: this.state.category.id, formData: this.state.contentToEdit })
+      .upsertContentItem({
+        categoryId: this.state.newItemCategory.id,
+        formData: this.state.newItemData
+      })
       .then(() => Promise.all([this.searchContentItems(), this.props.fetchContentItemsCount()]))
-      .then(this.resetEditContent)
+      .then(this.resetCreateContent)
   }
 
   handlePick(item) {
@@ -84,11 +87,11 @@ class SelectContent extends Component {
   }
 
   handleFormEdited = data => {
-    this.setState({ contentToEdit: data })
+    this.setState({ newItemData: data })
   }
 
-  resetEditContent = () => {
-    this.setState({ category: null, contentToEdit: null })
+  resetCreateContent = () => {
+    this.setState({ newItemCategory: null, newItemData: null })
   }
 
   onClose = () => {
@@ -99,7 +102,7 @@ class SelectContent extends Component {
   }
 
   render() {
-    const schema = (this.state.category || {}).schema || { json: {}, ui: {} }
+    const schema = (this.state.newItemCategory || {}).schema || { json: {}, ui: {} }
 
     return (
       <Modal animation={false} show={this.state.show} onHide={this.onClose} container={document.getElementById('app')}>
@@ -121,7 +124,7 @@ class SelectContent extends Component {
             {this.props.categories.map(category => (
               <a
                 href="#"
-                onClick={() => this.setState({ category, contentToEdit: {} })}
+                onClick={() => this.setState({ category, newItemData: {} })}
                 className={`list-group-item list-group-item-action ${style.createItem}`}
               >
                 Create new {category.title}
@@ -140,11 +143,11 @@ class SelectContent extends Component {
         </Modal.Body>
 
         <CreateOrEditModal
-          show={this.state.contentToEdit}
+          show={this.state.newItemData}
           schema={schema.json}
           uiSchema={schema.ui}
-          handleClose={this.resetEditContent}
-          formData={this.state.contentToEdit}
+          handleClose={this.resetCreateContent}
+          formData={this.state.newItemData}
           handleEdit={this.handleFormEdited}
           handleCreateOrUpdate={this.handleCreate}
         />
@@ -163,7 +166,7 @@ const mapDispatchToProps = {
   fetchContentItemsRecent,
   fetchContentItemsCount,
   fetchContentCategories,
-  upsertContentItems
+  upsertContentItem
 }
 
 export default connect(mapStateToProps, mapDispatchToProps)(SelectContent)

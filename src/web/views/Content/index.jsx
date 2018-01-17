@@ -7,7 +7,7 @@ import _ from 'lodash'
 import { Grid, Row, Col, Alert } from 'react-bootstrap'
 
 import Sidebar from './Sidebar'
-import { fetchContentCategories, fetchContentItems, upsertContentItems, deleteContentItems } from '~/actions'
+import { fetchContentCategories, fetchContentItems, upsertContentItem, deleteContentItems } from '~/actions'
 
 import List from './List'
 import CreateOrEditModal from './modal'
@@ -67,7 +67,7 @@ class ContentView extends Component {
   handleUpsert = () => {
     const categoryId = this.currentCategoryId()
     this.props
-      .upsertContentItems({ categoryId, formData: this.state.contentToEdit, modifyId: this.state.modifyId })
+      .upsertContentItem({ categoryId, formData: this.state.contentToEdit, modifyId: this.state.modifyId })
       .then(() => this.fetchCategoryItems(this.state.selectedId))
       .then(() => this.setState({ showModal: false }))
   }
@@ -193,7 +193,7 @@ const mapStateToProps = state => ({
 const mapDispatchToProps = {
   fetchContentCategories,
   fetchContentItems,
-  upsertContentItems,
+  upsertContentItem,
   deleteContentItems
 }
 
