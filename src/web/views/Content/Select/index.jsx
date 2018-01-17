@@ -34,7 +34,7 @@ class SelectContent extends Component {
       this.setState({ show: true, activeItemIndex: 0 })
       setImmediate(() => moveCursorToEnd(this.searchInput))
 
-      window.onkeyup = this.handleChangeActiveItem
+      window.addEventListener('keyup', this.handleChangeActiveItem)
     }
   }
 
@@ -79,9 +79,8 @@ class SelectContent extends Component {
   }
 
   handlePick(item) {
-    this.setState({ show: false })
     this.callback(item)
-    window.onkeyup = null
+    this.onClose()
   }
 
   handleFormEdited = data => {
@@ -90,6 +89,8 @@ class SelectContent extends Component {
 
   onClose = () => {
     this.setState({ show: false })
+    this.callback = null
+    window.removeEventListener('keyup', this.handleChangeActiveItem)
     window.onkeyup = null
   }
 
