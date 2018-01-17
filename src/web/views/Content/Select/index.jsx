@@ -7,24 +7,32 @@ import classnames from 'classnames'
 
 import CreateOrEditModal from '../modal'
 import { fetchContentItemsRecent, fetchContentItemsCount, fetchContentCategories, upsertContentItems } from '~/actions'
+import { moveCursorToEnd } from '~/util'
 
 const style = require('./style.scss')
 
+const SEARCH_RESULTS_LIMIT = 5
+
 class SelectContent extends Component {
+  state = {
+    show: false,
+    category: null,
+    searchTerm: '',
+    contentToEdit: null,
+    activeItemIndex: 0
+  }
+
   constructor(props) {
     super(props)
 
-    this.state = { show: false, category: null, searchTerm: '', contentToEdit: null, activeItemIndex: 0 }
-
     window.botpress = window.botpress || {}
     window.botpress.pickContent = (options = {}, callback) => {
-      this.props.fetchContentItemsRecent({})
+      this.searchContentItems()
       this.props.fetchContentItemsCount()
       this.props.fetchContentCategories()
-      this.setState({ show: true })
       this.callback = callback
-      this.setState({ activeItemIndex: 0 })
-      setImmediate(() => this.searchInput && this.searchInput.focus())
+      this.setState({ show: true, activeItemIndex: 0 })
+      setImmediate(() => moveCursorToEnd(this.searchInput))
 
       window.onkeyup = this.handleChangeActiveItem
     }
@@ -34,37 +42,39 @@ class SelectContent extends Component {
     delete window.botpress.pickContent
   }
 
+  searchContentItems() {
+    return this.props.fetchContentItemsRecent({
+      count: SEARCH_RESULTS_LIMIT,
+      searchTerm: this.state.searchTerm
+    })
+  }
+
   handleChangeActiveItem = e => {
     const index = this.state.activeItemIndex
     if (e.key === 'ArrowUp') {
       this.setState({ activeItemIndex: index > 0 ? index - 1 : index })
     } else if (e.key === 'ArrowDown') {
-      this.setState({ activeItemIndex: index < 4 ? index + 1 : index })
+      this.setState({ activeItemIndex: index < SEARCH_RESULTS_LIMIT - 1 ? index + 1 : index })
     } else if (e.key === 'Enter') {
       this.handlePick(this.props.contentItems[this.state.activeItemIndex])
     }
   }
 
-  search = event => {
-    if (['ArrowUp', 'ArrowDown'].includes(event.key)) {
+  onSearchChange = event => {
+    const newSearchTerm = event.target.value
+    const { searchTerm } = this.state
+    if (newSearchTerm === searchTerm) {
       return
     }
-
-    this.setState({ searchTerm: event.target.value })
-    this.props
-      .fetchContentItemsRecent({ searchTerm: event.target.value })
-      .then(() => this.setState({ activeItemIndex: 0 }))
+    this.setState({ searchTerm: newSearchTerm }, () => {
+      this.searchContentItems().then(() => this.setState({ activeItemIndex: 0 }))
+    })
   }
 
   handleCreate = () => {
     this.props
       .upsertContentItems({ categoryId: this.state.category.id, formData: this.state.contentToEdit })
-      .then(() =>
-        Promise.all([
-          this.props.fetchContentItemsRecent({ searchTerm: this.state.searchTerm }),
-          this.props.fetchContentItemsCount()
-        ])
-      )
+      .then(() => Promise.all([this.searchContentItems(), this.props.fetchContentItemsCount()]))
       .then(() => this.setState({ category: null, contentToEdit: null }))
   }
 
@@ -97,8 +107,9 @@ class SelectContent extends Component {
             className="form-control"
             placeholder={`Search all content elements (${this.props.itemsCount})`}
             aria-label="Search content elements"
-            onKeyUp={this.search}
+            onChange={this.onSearchChange}
             ref={input => (this.searchInput = input)}
+            value={this.state.searchTerm}
           />
           <hr />
           <div className="list-group">
@@ -106,7 +117,7 @@ class SelectContent extends Component {
               <a
                 href="#"
                 onClick={() => this.setState({ category, contentToEdit: {} })}
-                className={`list-group-item list-group-item-action ${classnames(style.createItem)}`}
+                className={`list-group-item list-group-item-action ${style.createItem}`}
               >
                 Create new {category.title}
               </a>
