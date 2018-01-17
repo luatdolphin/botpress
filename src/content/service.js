@@ -79,7 +79,9 @@ module.exports = async ({ botfile, projectLocation, logger, ghostManager }) => {
     }
 
     if (searchTerm) {
-      query = query.andWhere('metadata', 'like', `%${searchTerm}%`).orWhere('formData', 'like', `%${searchTerm}%`)
+      query = query.where(function() {
+        this.where('metadata', 'like', `%${searchTerm}%`).orWhere('formData', 'like', `%${searchTerm}%`)
+      })
     }
 
     const items = await query

@@ -177,7 +177,7 @@ class SelectContent extends Component {
 
     return (
       <p>
-        Currently Searching in: <strong>{title}</strong>.&#32;
+        Currently Searching in: <strong>{title}</strong>.&nbsp;
         <button className="btn btn-warning btn-sm" onClick={this.resetCurrentCategory}>
           Change
         </button>
