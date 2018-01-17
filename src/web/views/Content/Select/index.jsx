@@ -75,7 +75,7 @@ class SelectContent extends Component {
     this.props
       .upsertContentItems({ categoryId: this.state.category.id, formData: this.state.contentToEdit })
       .then(() => Promise.all([this.searchContentItems(), this.props.fetchContentItemsCount()]))
-      .then(() => this.setState({ category: null, contentToEdit: null }))
+      .then(this.resetEditContent)
   }
 
   handlePick(item) {
@@ -85,6 +85,10 @@ class SelectContent extends Component {
 
   handleFormEdited = data => {
     this.setState({ contentToEdit: data })
+  }
+
+  resetEditContent = () => {
+    this.setState({ category: null, contentToEdit: null })
   }
 
   onClose = () => {
@@ -136,10 +140,10 @@ class SelectContent extends Component {
         </Modal.Body>
 
         <CreateOrEditModal
-          show={Boolean(this.state.category)}
+          show={this.state.contentToEdit}
           schema={schema.json}
           uiSchema={schema.ui}
-          handleClose={() => this.setState({ category: null })}
+          handleClose={this.resetEditContent}
           formData={this.state.contentToEdit}
           handleEdit={this.handleFormEdited}
           handleCreateOrUpdate={this.handleCreate}
