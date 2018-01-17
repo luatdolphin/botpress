@@ -13,13 +13,21 @@ const style = require('./style.scss')
 
 const SEARCH_RESULTS_LIMIT = 5
 
+const formSteps = {
+  INITIAL: 0,
+  PICK_CATEGORY: 1,
+  MAIN: 2
+}
+
 class SelectContent extends Component {
   state = {
     show: false,
     newItemCategory: null,
     searchTerm: '',
     newItemData: null,
-    activeItemIndex: 0
+    activeItemIndex: 0,
+    categoryId: null,
+    step: formSteps.INITIAL
   }
 
   constructor(props) {
@@ -27,15 +35,30 @@ class SelectContent extends Component {
 
     window.botpress = window.botpress || {}
     window.botpress.pickContent = (options = {}, callback) => {
-      this.searchContentItems()
-      this.props.fetchContentItemsCount()
-      this.props.fetchContentCategories()
-      this.callback = callback
-      this.setState({ show: true, activeItemIndex: 0 })
-      setImmediate(() => moveCursorToEnd(this.searchInput))
+      this.setState({ step: formSteps.INITIAL }, () => {
+        this.searchContentItems()
+        this.props.fetchContentItemsCount()
+        this.props.fetchContentCategories()
+        this.callback = callback
+        this.setState({ show: true, activeItemIndex: 0 })
+        setImmediate(() => moveCursorToEnd(this.searchInput))
+      })
 
       window.addEventListener('keyup', this.handleChangeActiveItem)
     }
+  }
+
+  componentWillReceiveProps(newProps) {
+    const { categories } = newProps
+    if (!categories || !categories.length) {
+      return
+    }
+    if (this.state.step !== formSteps.INITIAL) {
+      return
+    }
+    this.setState({
+      step: categories.length > 1 ? formSteps.PICK_CATEGORY : formSteps.MAIN
+    })
   }
 
   componentWillUnmount() {
@@ -45,7 +68,8 @@ class SelectContent extends Component {
   searchContentItems() {
     return this.props.fetchContentItemsRecent({
       count: SEARCH_RESULTS_LIMIT,
-      searchTerm: this.state.searchTerm
+      searchTerm: this.state.searchTerm,
+      categoryId: this.state.categoryId || 'all'
     })
   }
 
@@ -98,7 +122,116 @@ class SelectContent extends Component {
     this.setState({ show: false })
     this.callback = null
     window.removeEventListener('keyup', this.handleChangeActiveItem)
-    window.onkeyup = null
+  }
+
+  getVisibleCategories() {
+    const { categories } = this.props
+    const { categoryId } = this.state
+    if (categoryId) {
+      return categories.filter(({ id }) => id === categoryId)
+    }
+    return categories
+  }
+
+  setCurrentCategory(categoryId) {
+    this.setState({ categoryId }, () => {
+      this.searchContentItems().then(() => this.setState({ step: formSteps.MAIN }))
+    })
+  }
+
+  renderCategoryPicker() {
+    const { categories } = this.props
+    return (
+      <div>
+        <strong>Search in:</strong>
+        <div className="list-group">
+          <a href="#" onClick={() => this.setCurrentCategory(null)} className="list-group-item list-group-item-action">
+            All
+          </a>
+          {categories.map(category => (
+            <a
+              href="#"
+              onClick={() => this.setCurrentCategory(category.id)}
+              className="list-group-item list-group-item-action"
+            >
+              {category.title}
+            </a>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  resetCurrentCategory = () => {
+    this.setState({ categoryId: null, step: formSteps.PICK_CATEGORY })
+  }
+
+  renderCurrentCategoryInfo() {
+    const { categories } = this.props
+    if (!categories || categories.length < 2) {
+      return null
+    }
+
+    const { categoryId } = this.state
+    const title = categoryId ? categories.find(({ id }) => id === categoryId).title : 'All'
+
+    return (
+      <p>
+        Currently Searching in: <strong>{title}</strong>.&#32;
+        <button className="btn btn-warning btn-sm" onClick={this.resetCurrentCategory}>
+          Change
+        </button>
+      </p>
+    )
+  }
+
+  renderMainBody() {
+    const categories = this.getVisibleCategories()
+
+    return (
+      <div>
+        {this.renderCurrentCategoryInfo()}
+        <input
+          type="text"
+          className="form-control"
+          placeholder={`Search all content elements (${this.props.itemsCount})`}
+          aria-label="Search content elements"
+          onChange={this.onSearchChange}
+          ref={input => (this.searchInput = input)}
+          value={this.state.searchTerm}
+        />
+        <hr />
+        <div className="list-group">
+          {categories.map(category => (
+            <a
+              href="#"
+              onClick={() => this.setState({ newItemCategory: category, newItemData: {} })}
+              className={`list-group-item list-group-item-action ${style.createItem}`}
+            >
+              Create new {category.title}
+            </a>
+          ))}
+          {this.props.contentItems.map((contentItem, i) => (
+            <a
+              href="#"
+              className={`list-group-item list-group-item-action ${i === this.state.activeItemIndex ? 'active' : ''}`}
+              onClick={() => this.handlePick(contentItem)}
+            >
+              {`[${contentItem.categoryId}] ${contentItem.previewText}`}
+            </a>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  renderBody() {
+    if (this.state.step === formSteps.INITIAL) {
+      return null
+    } else if (this.state.step === formSteps.PICK_CATEGORY) {
+      return this.renderCategoryPicker()
+    }
+    return this.renderMainBody()
   }
 
   render() {
@@ -109,38 +242,7 @@ class SelectContent extends Component {
         <Modal.Header closeButton>
           <Modal.Title>Pick Content</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          <input
-            type="text"
-            className="form-control"
-            placeholder={`Search all content elements (${this.props.itemsCount})`}
-            aria-label="Search content elements"
-            onChange={this.onSearchChange}
-            ref={input => (this.searchInput = input)}
-            value={this.state.searchTerm}
-          />
-          <hr />
-          <div className="list-group">
-            {this.props.categories.map(category => (
-              <a
-                href="#"
-                onClick={() => this.setState({ category, newItemData: {} })}
-                className={`list-group-item list-group-item-action ${style.createItem}`}
-              >
-                Create new {category.title}
-              </a>
-            ))}
-            {this.props.contentItems.map((contentItem, i) => (
-              <a
-                href="#"
-                className={`list-group-item list-group-item-action ${i === this.state.activeItemIndex ? 'active' : ''}`}
-                onClick={() => this.handlePick(contentItem)}
-              >
-                {`[${contentItem.categoryId}] ${contentItem.previewText}`}
-              </a>
-            ))}
-          </div>
-        </Modal.Body>
+        <Modal.Body>{this.renderBody()}</Modal.Body>
 
         <CreateOrEditModal
           show={this.state.newItemData}
